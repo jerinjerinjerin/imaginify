@@ -1,33 +1,38 @@
 /* eslint-disable camelcase */
+import { clerkClient } from "@clerk/nextjs";
 import { WebhookEvent } from "@clerk/nextjs/server";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { Webhook } from "svix";
-import { clerkClient } from "@clerk/clerk-sdk-node"; // Import from clerk-sdk-node
 
 import { createUser, deleteUser, updateUser } from "@/lib/actions/user.actions";
 
 export async function POST(req: Request) {
+  // Get the webhook secret from environment variables
   const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
   if (!WEBHOOK_SECRET) {
     throw new Error("Please add WEBHOOK_SECRET from Clerk Dashboard to .env or .env.local");
   }
 
+  // Get the necessary headers
   const headerPayload = headers();
   const svix_id = headerPayload.get("svix-id");
   const svix_timestamp = headerPayload.get("svix-timestamp");
   const svix_signature = headerPayload.get("svix-signature");
 
+  // If the necessary headers are missing, return an error response
   if (!svix_id || !svix_timestamp || !svix_signature) {
     return new Response("Error occurred -- no svix headers", {
       status: 400,
     });
   }
 
+  // Parse the request body
   const payload = await req.json();
   const body = JSON.stringify(payload);
 
+  // Verify the webhook using Svix
   const wh = new Webhook(WEBHOOK_SECRET);
   let evt: WebhookEvent;
 
@@ -44,6 +49,7 @@ export async function POST(req: Request) {
     });
   }
 
+  // Handle the webhook event
   const { id } = evt.data;
   const eventType = evt.type;
 
